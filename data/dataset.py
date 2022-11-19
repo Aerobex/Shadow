@@ -6,7 +6,8 @@ import torch
 import numpy as np
 import  math
 from .util.mask import (bbox2mask, brush_stroke_mask, get_irregular_mask, random_bbox, random_cropping_bbox)
-
+from core.util import tensor2img
+import matplotlib.image as mp
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
     '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
@@ -48,6 +49,12 @@ class InpaintDataset(data.Dataset):
         self.mask_config = mask_config
         self.mask_mode = self.mask_config['mask_mode']
         self.image_size = image_size
+
+
+
+       # path=r"D:\codes\pytorch\Palette-Image-to-Image-Diffusion-Models-main\data\1.png"
+        # img = Image.open(path)  # 打开图片
+        # img.save("tensor2img(mask)")
 
     def __getitem__(self, index):
         ret = {}
@@ -155,7 +162,7 @@ class UncroppingDataset(data.Dataset):
 
 
 class ColorizationDataset(data.Dataset):
-    def __init__(self, data_root, data_flist, data_len=-1, image_size=[1, 1], loader=pil_loader):
+    def __init__(self, data_root, data_flist, data_len=-1, image_size=[64, 64], loader=pil_loader):
         self.data_root = data_root
         flist = make_dataset(data_flist)
         if data_len > 0:
@@ -175,7 +182,14 @@ class ColorizationDataset(data.Dataset):
         # cond_image = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'train_A', file_name)))
         # mask_image = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'train_B', file_name)))
         # print("now\n")
-
+        file_name = str(self.flist[0]) + '.png'
+        img = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'train_C', file_name)))
+        cond_image = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'train_A', file_name)))
+        mask_img = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'train_B', file_name)))
+        mask = self.deal_mask(mask_img)
+        print(mask)
+        print((mask_img))
+        print(1)
 
     def __getitem__(self, index):
         ret = {}
@@ -193,4 +207,14 @@ class ColorizationDataset(data.Dataset):
     def __len__(self):
         return len(self.flist)
 
+    def deal_mask(self,mask):
+        height, width = self.image_size[:2]
+        maskt = np.zeros((height, width, 1), dtype='uint8')
+        for x in range(height):
+            for y in range(width):
+                #print(mask[0][x][y].item())
+                if((mask[0][x][y].item()+1.0>1e-10) or (mask[0][x][y].item()+1.0<-1e-10)):
+                    maskt[x][y][0]=1
+                    print("yes")
+        return torch.from_numpy(maskt).permute(2, 0, 1)
 
